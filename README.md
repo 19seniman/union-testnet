@@ -5,7 +5,10 @@ Union is a highly efficient interoperability layer based on Zero-Knowledge, desi
 ## Installation
 
 ```
-git clone 
+git clone https://github.com/19seniman/union-testnet.git
+```
+```
+cd union-testnet
 ```
 ```
 npm install
