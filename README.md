@@ -19,6 +19,7 @@ nano .env
 Format on nano .env
 
 PRIVATE_KEY_1=
+
 BABYLON_ADDRESS_1=
 
 ~ Run sript
