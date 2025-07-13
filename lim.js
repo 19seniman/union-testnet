@@ -1,20 +1,17 @@
-const fs = require('fs');
-const path = require('path');
+require('dotenv').config();
 const { ethers, JsonRpcProvider } = require('ethers');
 const axios = require('axios');
 const moment = require('moment-timezone');
 const readline = require('readline');
-const { DirectSecp256k1HdWallet } = require('@cosmjs/proto-signing');
-require('dotenv').config();
 
 const colors = {
-  reset: "\x1b[0m",
-  cyan: "\x1b[36m",
-  green: "\x1b[32m",
-  yellow: "\x1b[33m",
-  red: "\x1b[31m",
-  white: "\x1b[37m",
-  bold: "\x1b[1m"
+  reset: '\x1b[0m',
+  cyan: '\x1b[36m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  red: '\x1b[31m',
+  white: '\x1b[37m',
+  bold: '\x1b[1m',
 };
 
 const logger = {
@@ -24,15 +21,13 @@ const logger = {
   success: (msg) => console.log(`${colors.green}[✅] ${msg}${colors.reset}`),
   loading: (msg) => console.log(`${colors.cyan}[⟳] ${msg}${colors.reset}`),
   step: (msg) => console.log(`${colors.white}[➤] ${msg}${colors.reset}`),
-  countdown: (msg) => process.stdout.write(`\r${colors.blue}[⏰] ${msg}${colors.reset}`),
   banner: () => {
-    const { cyan, magenta, reset } = colors;
-    console.log(magenta + '=============================================' + reset);
-    console.log(cyan + '  🍉🍉PLEASE SUPPORT PALESTINE ON SOCIAL MEDIA 🍉🍉 ' + reset);
-    console.log(cyan + '       19Senniman from Insider' + reset);
-    console.log(magenta + '=============================================' + reset);
+    console.log(`${colors.cyan}${colors.bold}`);
+    console.log(`---------------------------------------------`);
+    console.log(` 🍉 19Seniman From  Insider 🍉 `);
+    console.log(`---------------------------------------------${colors.reset}`);
     console.log();
-  }
+  },
 };
 
 const UCS03_ABI = [
@@ -55,12 +50,12 @@ const UCS03_ABI = [
     ],
     name: 'send',
     outputs: [],
-    stateMutability: 'nonpayable',
+    stateMutability: 'payable',
     type: 'function',
   },
 ];
 
-const USDC_ABI = [
+const TOKEN_ABI = [
   {
     constant: true,
     inputs: [{ name: 'account', type: 'address' }],
@@ -93,40 +88,80 @@ const USDC_ABI = [
   },
 ];
 
-const contractAddress = '0x5FbE74A283f7954f10AA04C2eDf55578811aeb03';
-const USDC_ADDRESS = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238';
-const graphqlEndpoint = 'https://graphql.union.build/v1/graphql';
-const baseExplorerUrl = 'https://sepolia.etherscan.io';
-const unionUrl = 'https://app.union.build/explorer';
-
-const rpcProviders = [new JsonRpcProvider('https://eth-sepolia.public.blastapi.io')];
-let currentRpcProviderIndex = 0;
-
-function provider() {
-  return rpcProviders[currentRpcProviderIndex];
-}
-
-function rotateRpcProvider() {
-  currentRpcProviderIndex = (currentRpcProviderIndex + 1) % rpcProviders.length;
-  return provider();
-}
+const CONFIG = {
+  SEPOLIA: {
+    RPC_URLS: ['https://1rpc.io/sepolia', 'https://rpc-sepolia.eth.limo'],
+    TOKEN_ADDRESS: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', 
+    EXPLORER_URL: 'https://sepolia.etherscan.io',
+    CHANNEL_ID: 8, 
+    BASE_TOKEN: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    BASE_TOKEN_NAME: 'USDC',
+    BASE_TOKEN_SYMBOL: 'USDC',
+    QUOTE_TOKEN: '0x57978Bfe465ad9B1C0bf80f6C1539D300705ea50',
+    DECIMALS: 6,
+    IS_NATIVE: false,
+  },
+  HOLESKY: {
+    RPC_URLS: ['https://ethereum-holesky-rpc.publicnode.com', 'https://holesky.rpc.thirdweb.com'],
+    TOKEN_ADDRESS: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', 
+    EXPLORER_URL: 'https://holesky.etherscan.io',
+    CHANNEL_ID: 2, 
+    BASE_TOKEN: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    BASE_TOKEN_NAME: 'ETH',
+    BASE_TOKEN_SYMBOL: 'Ether',
+    QUOTE_TOKEN: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', 
+    DECIMALS: 18,
+    IS_NATIVE: true,
+  },
+  CORN: {
+    RPC_URLS: ['https://21000001.rpc.thirdweb.com', 'https://rpc.testnet.corn.network'],
+    TOKEN_ADDRESS: '0x92b3bc0bc3ac0ee60b04a0bbc4a09deb3914c886', 
+    EXPLORER_URL: 'https://testnet.cornscan.io',
+    CHANNEL_ID_CORN_TO_SEI: 3,
+    BASE_TOKEN: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    BASE_TOKEN_NAME: 'BTCN',
+    BASE_TOKEN_SYMBOL: 'Bitcorn',
+    QUOTE_TOKEN: '0x92b3bc0bc3ac0ee60b04a0bbc4a09deb3914c886',
+    DECIMALS: 6,
+    IS_NATIVE: false,
+  },
+  BSC: {
+    RPC_URLS: [
+      'https://data-seed-prebsc-1-s1.bnbchain.org:8545',
+      'https://bsc-testnet-rpc.publicnode.com',
+      'https://bsc-testnet.bnbchain.org',
+    ],
+    TOKEN_ADDRESS: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', 
+    EXPLORER_URL: 'https://testnet.bscscan.com',
+    CHANNEL_ID_BSC_TO_SEI: 3,
+    BASE_TOKEN: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    BASE_TOKEN_NAME: 'BNB',
+    BASE_TOKEN_SYMBOL: 'BNB',
+    QUOTE_TOKEN: '0x4caf05080814e6ef3ee625fa664014309ba3327c',
+    DECIMALS: 18,
+    IS_NATIVE: true,
+  },
+  CONTRACT_ADDRESS: '0x5FbE74A283f7954f10AA04C2eDf55578811aeb03',
+  GRAPHQL_ENDPOINT: 'https://graphql.union.build/v1/graphql',
+  UNION_URL: 'https://app.union.build/explorer',
+};
 
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 
 function askQuestion(query) {
-  return new Promise(resolve => rl.question(query, resolve));
+  return new Promise((resolve) => rl.question(`${colors.cyan}[?] ${query}${colors.reset}`, resolve));
 }
 
 const explorer = {
-  tx: (txHash) => `${baseExplorerUrl}/tx/${txHash}`,
-  address: (address) => `${baseExplorerUrl}/address/${address}`,
+  tx: (txHash, chain) => `${CONFIG[chain].EXPLORER_URL}/tx/${txHash}`,
+  address: (address, chain) => `${CONFIG[chain].EXPLORER_URL}/address/${address}`,
 };
 
 const union = {
-  tx: (txHash) => `${unionUrl}/transfers/${txHash}`,
+  tx: (txHash) => `${CONFIG.UNION_URL}/transfers/${txHash}`,
 };
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -140,13 +175,34 @@ function header() {
   logger.banner();
 }
 
+function getProvider(chain) {
+  const rpcUrls = CONFIG[chain].RPC_URLS;
+  let currentRpcIndex = 0;
+
+  function provider() {
+    const rpcUrl = rpcUrls[currentRpcIndex];
+    return new JsonRpcProvider(rpcUrl, undefined, {
+      pollingInterval: 1000,
+      requestTimeout: 30000,
+    });
+  }
+
+  provider.next = () => {
+    currentRpcIndex = (currentRpcIndex + 1) % rpcUrls.length;
+    logger.info(`Switched to RPC: ${rpcUrls[currentRpcIndex]}`);
+    return provider();
+  };
+
+  return provider;
+}
+
 async function pollPacketHash(txHash, retries = 50, intervalMs = 5000) {
   const headers = {
     accept: 'application/graphql-response+json, application/json',
     'accept-encoding': 'gzip, deflate, br, zstd',
     'accept-language': 'en-US,en;q=0.9,id;q=0.8',
     'content-type': 'application/json',
-    origin: 'https://app-union.build',
+    origin: 'https://app.union.build',
     referer: 'https://app.union.build/',
     'user-agent': 'Mozilla/5.0',
   };
@@ -165,7 +221,7 @@ async function pollPacketHash(txHash, retries = 50, intervalMs = 5000) {
 
   for (let i = 0; i < retries; i++) {
     try {
-      const res = await axios.post(graphqlEndpoint, data, { headers });
+      const res = await axios.post(CONFIG.GRAPHQL_ENDPOINT, data, { headers });
       const result = res.data?.data?.v2_transfers;
       if (result && result.length > 0 && result[0].packet_hash) {
         return result[0].packet_hash;
@@ -175,197 +231,288 @@ async function pollPacketHash(txHash, retries = 50, intervalMs = 5000) {
     }
     await delay(intervalMs);
   }
-  logger.warn(`No packet hash found after ${retries} retries.`);
-  return null;
 }
 
-async function checkBalanceAndApprove(wallet, usdcAddress, spenderAddress) {
-  const usdcContract = new ethers.Contract(usdcAddress, USDC_ABI, wallet);
-  const balance = await usdcContract.balanceOf(wallet.address);
-  if (balance === 0n) {
-    logger.error(`${wallet.address} not have enough USDC. Fund your wallet first!`);
+function padHex(value, length = 64) {
+  let cleanValue;
+  if (typeof value === 'number' || typeof value === 'bigint') {
+    cleanValue = value.toString(16);
+  } else if (typeof value === 'string') {
+    cleanValue = value.replace(/^0x/, '');
+  } else {
+    cleanValue = ethers.toBeHex(value).replace(/^0x/, '');
+  }
+  const padded = cleanValue.padStart(length, '0');
+  return `0x${padded}`;
+}
+
+function encodeHexString(string, length) {
+  const cleaned = string.toLowerCase().replace(/^0x/, '');
+  return cleaned.padEnd(length * 2, '0');
+}
+
+function encodeStringAsBytes(string, length) {
+  const hex = Buffer.from(string, 'utf8').toString('hex');
+  return hex.padEnd(length * 2, '0');
+}
+
+function generateInstructionData(address, amount, chain, pair) {
+  const config = CONFIG[chain];
+  const amountBigInt = BigInt(amount.toString());
+  const amountHex = amountBigInt.toString(16);
+
+  let nameLength, symbolLength;
+  if (pair === 'HOLESKY_TO_SEPOLIA') {
+    nameLength = 3; 
+    symbolLength = 5; 
+  } else if (pair === 'CORN_TO_SEI') {
+    nameLength = 4; 
+    symbolLength = 7; 
+  } else if (pair === 'BSC_TO_SEI') {
+    nameLength = 3; 
+    symbolLength = 3; 
+  } else {
+    nameLength = config.BASE_TOKEN_NAME.length;
+    symbolLength = config.BASE_TOKEN_SYMBOL.length;
+  }
+
+  const parts = [
+    padHex(32, 64),
+    padHex(1, 64),
+    padHex(32, 64),
+    padHex(1, 64),
+    padHex(3, 64),
+    padHex(96, 64),
+    padHex(704, 64),
+    padHex(320, 64),
+    padHex(384, 64),
+    padHex(448, 64),
+    padHex(amountHex, 64),
+    padHex(512, 64),
+    padHex(576, 64),
+    padHex(config.DECIMALS, 64),
+    padHex(0, 64),
+    padHex(640, 64),
+    padHex(amountHex, 64),
+    padHex(20, 64),
+    encodeHexString(address, 32),
+    padHex(20, 64),
+    encodeHexString(address, 32),
+    padHex(20, 64),
+    encodeHexString(config.TOKEN_ADDRESS, 32),
+    padHex(nameLength, 64),
+    encodeStringAsBytes(config.BASE_TOKEN_NAME, 32),
+    padHex(symbolLength, 64),
+    encodeStringAsBytes(config.BASE_TOKEN_SYMBOL, 32),
+    padHex(20, 64),
+    encodeHexString(config.QUOTE_TOKEN, 32),
+  ];
+  const joinedParts = parts.map((part) => part.replace(/^0x/, '')).join('');
+  return {
+    version: 0,
+    opcode: 2,
+    operand: `0x${joinedParts}`,
+  };
+}
+
+async function checkBalanceAndApprove(wallet, chain, amount, pair) {
+  const config = CONFIG[chain];
+  const provider = getProvider(chain)();
+  const amountWei = ethers.parseUnits(amount.toString(), config.DECIMALS);
+
+  const nativeBalance = await provider.getBalance(wallet.address);
+  if (nativeBalance < ethers.parseUnits('0.001', 18)) {
+    logger.error(`${wallet.address} does not have enough native balance for gas: ${ethers.formatEther(nativeBalance)}`);
     return false;
   }
 
-  const allowance = await usdcContract.allowance(wallet.address, spenderAddress);
-  if (allowance === 0n) {
-    logger.loading(`USDC is not allowance. Sending approve transaction....`);
-    const approveAmount = ethers.MaxUint256;
-    try {
-      const tx = await usdcContract.approve(spenderAddress, approveAmount);
-      const receipt = await tx.wait();
-      logger.success(`Approve confirmed: ${explorer.tx(receipt.hash)}`);
-      await delay(3000);
-    } catch (err) {
-      logger.error(`Approve failed: ${err.message}`);
+  if (config.IS_NATIVE) {
+    if (nativeBalance < amountWei) {
+      logger.error(`${wallet.address} does not have enough ${config.BASE_TOKEN_NAME} balance: ${ethers.formatUnits(nativeBalance, config.DECIMALS)}`);
       return false;
+    }
+  } else {
+    const tokenContract = new ethers.Contract(config.TOKEN_ADDRESS, TOKEN_ABI, wallet);
+    const tokenBalance = await tokenContract.balanceOf(wallet.address);
+    if (tokenBalance < amountWei) {
+      logger.error(`${wallet.address} does not have enough ${config.BASE_TOKEN_NAME} balance: ${ethers.formatUnits(tokenBalance, config.DECIMALS)}`);
+      return false;
+    }
+    const allowance = await tokenContract.allowance(wallet.address, CONFIG.CONTRACT_ADDRESS);
+    if (allowance < amountWei) {
+      logger.loading(`${config.BASE_TOKEN_NAME} is not approved. Sending approve transaction...`);
+      try {
+        const tx = await tokenContract.approve(CONFIG.CONTRACT_ADDRESS, ethers.MaxUint256);
+        const receipt = await tx.wait();
+        logger.success(`Approve confirmed: ${explorer.tx(receipt.hash, chain)}`);
+        await delay(3000);
+      } catch (err) {
+        logger.error(`Approve failed: ${err.message}`);
+        return false;
+      }
     }
   }
   return true;
 }
 
-async function sendFromWallet(walletInfo, maxTransaction, destination) {
-  const wallet = new ethers.Wallet(walletInfo.privatekey, provider());
-  let recipientAddress, destinationName, channelId, operand;
+async function sendFromWallet(walletInfo, maxTransaction, chain, privateKey, amount, pair) {
+  try {
+    const provider = getProvider(chain)();
+    const wallet = new ethers.Wallet(privateKey, provider);
+    logger.loading(`Sending from ${wallet.address} (Wallet ${walletInfo.index}) on ${pair}`);
 
-  if (destination === 'babylon') {
-    recipientAddress = walletInfo.babylonAddress;
-    destinationName = 'Babylon';
-    channelId = 7;
-    if (!recipientAddress) {
-      logger.warn(`Skipping wallet '${walletInfo.name || 'Unnamed'}': Missing babylonAddress.`);
-      return;
-    }
-  } else if (destination === 'holesky') {
-    recipientAddress = wallet.address;
-    destinationName = 'Holesky';
-    channelId = 8;
-  } else {
-    logger.error(`Invalid destination: ${destination}`);
-    return;
-  }
+    const shouldProceed = await checkBalanceAndApprove(wallet, chain, amount, pair);
+    if (!shouldProceed) return;
 
-  logger.loading(`Sending ${maxTransaction} Transaction Sepolia to ${destinationName} from ${wallet.address} (${walletInfo.name || 'Unnamed'})`);
-  const shouldProceed = await checkBalanceAndApprove(wallet, USDC_ADDRESS, contractAddress);
-  if (!shouldProceed) return;
+    const contract = new ethers.Contract(CONFIG.CONTRACT_ADDRESS, UCS03_ABI, wallet);
+    const channelId = pair === 'SEPOLIA_TO_HOLESKY' ? CONFIG.SEPOLIA.CHANNEL_ID :
+                     pair === 'HOLESKY_TO_SEPOLIA' ? CONFIG.HOLESKY.CHANNEL_ID :
+                     pair === 'CORN_TO_SEI' ? CONFIG.CORN.CHANNEL_ID_CORN_TO_SEI :
+                     CONFIG.BSC.CHANNEL_ID_BSC_TO_SEI;
+    const timeoutHeight = 0;
 
-  const contract = new ethers.Contract(contractAddress, UCS03_ABI, wallet);
-  const senderHex = wallet.address.slice(2).toLowerCase();
-  const recipientHex = destination === 'babylon' ? Buffer.from(recipientAddress, "utf8").toString("hex") : senderHex;
-  const timeoutHeight = 0;
+    for (let i = 1; i <= maxTransaction; i++) {
+      logger.step(`Wallet ${walletInfo.index} | Transaction ${i}/${maxTransaction} on ${pair}`);
 
-  if (destination === 'babylon') {
-    operand = `0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000001e00000000000000000000000000000000000000000000000000000000000002710000000000000000000000000000000000000000000000000000000000000022000000000000000000000000000000000000000000000000000000000000002600000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002a000000000000000000000000000000000000000000000000000000000000027100000000000000000000000000000000000000000000000000000000000000014${senderHex}000000000000000000000000000000000000000000000000000000000000000000000000000000000000002a${recipientHex}0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000141c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000000000000000000000000000004555344430000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000045553444300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003e62626e317a7372763233616b6b6778646e77756c3732736674677632786a74356b68736e743377776a687030666668363833687a7035617135613068366e0000`;
-  } else {
-    operand = `0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000002c00000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000001c000000000000000000000000000000000000000000000000000000000000027100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000028000000000000000000000000000000000000000000000000000000000000027100000000000000000000000000000000000000000000000000000000000000014${senderHex}0000000000000000000000000000000000000000000000000000000000000000000000000000000000000014${senderHex}00000000000000000000000000000000000000000000000000000000000000000000000000000000000000141c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000000000000000000000000000004555344430000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000045553444300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001457978bfe465ad9b1c0bf80f6c1539d300705ea50000000000000000000000000`;
-  }
+      const now = BigInt(Date.now()) * 1_000_000n;
+      const oneDayNs = 86_400_000_000_000n;
+      const timeoutTimestamp = now + oneDayNs;
+      const timestampNow = Math.floor(Date.now() / 1000);
+      const salt = ethers.keccak256(ethers.solidityPacked(['address', 'uint256'], [wallet.address, timestampNow]));
+      const instruction = generateInstructionData(wallet.address, ethers.parseUnits(amount.toString(), CONFIG[chain].DECIMALS), chain, pair);
 
-  for (let i = 1; i <= maxTransaction; i++) {
-    logger.step(`${walletInfo.name || 'Unnamed'} | Transaction ${i}/${maxTransaction}`);
-    const now = BigInt(Date.now()) * 1_000_000n;
-    const oneDayNs = 86_400_000_000_000n;
-    const timeoutTimestamp = (now + oneDayNs).toString();
-    const timestampNow = Math.floor(Date.now() / 1000);
-    const salt = ethers.keccak256(ethers.solidityPacked(['address', 'uint256'], [wallet.address, timestampNow]));
-    const instruction = {
-      version: 0,
-      opcode: 2,
-      operand,
-    };
 
-    try {
-      const tx = await contract.send(channelId, timeoutHeight, timeoutTimestamp, salt, instruction);
-      await tx.wait(1);
-      logger.success(`${timelog()} | ${walletInfo.name || 'Unnamed'} | Transaction Confirmed: ${explorer.tx(tx.hash)}`);
-      const txHash = tx.hash.startsWith('0x') ? tx.hash : `0x${tx.hash}`;
-      const packetHash = await pollPacketHash(txHash);
-      if (packetHash) {
-        logger.success(`${timelog()} | ${walletInfo.name || 'Unnamed'} | Packet Submitted: ${union.tx(packetHash)}`);
+      try {
+        const gasEstimate = await contract.send.estimateGas(channelId, timeoutHeight, timeoutTimestamp, salt, instruction, {
+          value: CONFIG[chain].IS_NATIVE ? ethers.parseUnits(amount.toString(), CONFIG[chain].DECIMALS) : 0,
+        });
+        const gasLimit = (gasEstimate * 120n) / 100n;
+        const latestBlock = await provider.getBlock('latest');
+        const baseFee = latestBlock.baseFeePerGas || ethers.parseUnits('1', 'gwei');
+        const maxPriorityFee = ethers.parseUnits(chain === 'BSC' ? '1' : '0.001', 'gwei');
+        const maxFee = baseFee + maxPriorityFee;
+
+        const txOptions = {
+          gasLimit,
+          maxFeePerGas: maxFee,
+          maxPriorityFeePerGas: maxPriorityFee,
+          nonce: await provider.getTransactionCount(wallet.address, 'latest'),
+          value: CONFIG[chain].IS_NATIVE ? ethers.parseUnits(amount.toString(), CONFIG[chain].DECIMALS) : 0,
+        };
+
+        logger.info(`Transaction options: ${JSON.stringify(txOptions, (key, value) => (typeof value === 'bigint' ? value.toString() : value))}`);
+        logger.loading('Sending transaction...');
+
+        const tx = await contract.send(channelId, timeoutHeight, timeoutTimestamp, salt, instruction, txOptions);
+        logger.info(`Transaction sent: ${tx.hash}`);
+
+        let receipt;
+        try {
+          receipt = await Promise.race([
+            tx.wait(1),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Transaction confirmation timeout')), 60000)),
+          ]);
+          logger.success(`${timelog()} | Wallet ${walletInfo.index} | Transaction Confirmed: ${explorer.tx(receipt.hash, chain)}`);
+        } catch (err) {
+          logger.error(`Transaction confirmation failed: ${err.message}`);
+          const txResponse = await provider.getTransaction(tx.hash);
+          if (txResponse && !txResponse.blockNumber) {
+            logger.warn(`Transaction ${tx.hash} is still pending in mempool`);
+          }
+          continue;
+        }
+
+        const packetHash = await pollPacketHash(tx.hash);
+        if (packetHash) {
+          logger.success(`${timelog()} | Wallet ${walletInfo.index} | Packet Submitted: ${union.tx(packetHash)}`);
+        }
+        console.log('');
+      } catch (err) {
+        logger.error(`Failed for ${wallet.address}: ${err.message}`);
+        if (err.data) logger.error(`Revert data: ${err.data}`);
+        console.log('');
       }
-      console.log('');
-    } catch (err) {
-      logger.error(`Failed for ${wallet.address}: ${err.message}`);
-      console.log('');
-    }
 
-    if (i < maxTransaction) {
-      await delay(1000);
+      if (i < maxTransaction) {
+        await delay(1000);
+      }
     }
+  } catch (err) {
+    logger.error(`Error in sendFromWallet for Wallet ${walletInfo.index}: ${err.message}`);
   }
 }
 
 async function main() {
   header();
 
-  const wallets = [];
+  const privateKeys = [];
   let index = 1;
-  while (true) {
-    const privateKey = process.env[`PRIVATE_KEY_${index}`];
-    const babylonAddress = process.env[`BABYLON_ADDRESS_${index}`];
-    if (!privateKey) break; 
-    wallets.push({
-      name: `Wallet${index}`,
-      privatekey: privateKey,
-      babylonAddress: babylonAddress || ''
-    });
+  while (process.env[`PRIVATE_KEY_${index}`]) {
+    const privateKey = process.env[`PRIVATE_KEY_${index}`].trim();
+    if (!privateKey.startsWith('0x')) {
+      logger.warn(`Skipping PRIVATE_KEY_${index}: Private key must start with '0x'.`);
+    } else if (!/^(0x)[0-9a-fA-F]{64}$/.test(privateKey)) {
+      logger.warn(`Skipping PRIVATE_KEY_${index}: Private key is not a valid 64-character hexadecimal string.`);
+    } else {
+      privateKeys.push({ index, privateKey });
+    }
     index++;
   }
 
-  if (wallets.length === 0) {
-    logger.error(`No wallets found in .env. Please provide at least one PRIVATE_KEY_X.`);
+  if (privateKeys.length === 0) {
+    logger.error('No valid private keys found in .env file.');
     process.exit(1);
   }
 
+  let pair, chain;
   while (true) {
-    console.log(`${colors.cyan}Menu:${colors.reset}`);
-    console.log(`1. Sepolia - Holesky`);
-    console.log(`2. Sepolia - Babylon`);
-    console.log(`3. Random (Holesky and Babylon)`);
-    console.log(`4. Exit`);
-    const menuChoice = await askQuestion(`${colors.cyan}[?] Select menu option (1-4): ${colors.reset}`);
-    const choice = parseInt(menuChoice.trim());
-
-    if (choice === 4) {
-      logger.info(`Exiting program.`);
-      rl.close();
-      process.exit(0);
+    console.log(`${colors.green}Select Pair:${colors.reset}`);
+    console.log(`${colors.white}1. Sepolia to Holesky${colors.reset}`);
+    console.log(`${colors.white}2. Holesky to Sepolia${colors.reset}`);
+    console.log(`${colors.white}3. Corn to Sei${colors.reset}`);
+    console.log(`${colors.white}4. BSC to Sei${colors.reset}`);
+    const option = parseInt(await askQuestion('Choose [1/2/3/4] -> '));
+    if ([1, 2, 3, 4].includes(option)) {
+      pair = option === 1 ? 'SEPOLIA_TO_HOLESKY' :
+             option === 2 ? 'HOLESKY_TO_SEPOLIA' :
+             option === 3 ? 'CORN_TO_SEI' :
+             'BSC_TO_SEI';
+      chain = option === 1 ? 'SEPOLIA' :
+              option === 2 ? 'HOLESKY' :
+              option === 3 ? 'CORN' :
+              'BSC';
+      break;
     }
-
-    if (![1, 2, 3].includes(choice)) {
-      logger.error(`Invalid option. Please select 1, 2, 3, or 4.`);
-      continue;
-    }
-
-    const maxTransactionInput = await askQuestion(`${colors.cyan}[?] Enter the number of transactions per wallet: ${colors.reset}`);
-    const maxTransaction = parseInt(maxTransactionInput.trim());
-
-    if (isNaN(maxTransaction) || maxTransaction <= 0) {
-      logger.error(`Invalid number. Please enter a positive number.`);
-      continue;
-    }
-
-    for (const walletInfo of wallets) {
-      if (!walletInfo.privatekey) {
-        logger.warn(`Skipping wallet '${walletInfo.name}': Missing privatekey.`);
-        continue;
-      }
-      if (!walletInfo.privatekey.startsWith('0x')) {
-        logger.warn(`Skipping wallet '${walletInfo.name}': Privatekey must start with '0x'.`);
-        continue;
-      }
-      if (!/^(0x)[0-9a-fA-F]{64}$/.test(walletInfo.privatekey)) {
-        logger.warn(`Skipping wallet '${walletInfo.name}': Privatekey is not a valid 64-character hexadecimal string.`);
-        continue;
-      }
-
-      if (choice === 1) {
-        await sendFromWallet(walletInfo, maxTransaction, 'holesky');
-      } else if (choice === 2) {
-        await sendFromWallet(walletInfo, maxTransaction, 'babylon');
-      } else if (choice === 3) {
-        const destinations = ['holesky', 'babylon'].filter(dest => dest !== 'babylon' || walletInfo.babylonAddress);
-        if (destinations.length === 0) {
-          logger.warn(`Skipping wallet '${walletInfo.name}': No valid destinations (missing babylonAddress).`);
-          continue;
-        }
-        for (let i = 0; i < maxTransaction; i++) {
-          const randomDest = destinations[Math.floor(Math.random() * destinations.length)];
-          await sendFromWallet(walletInfo, 1, randomDest);
-          if (i < maxTransaction - 1) {
-            await delay(1000);
-          }
-        }
-      }
-    }
-
-    if (wallets.length === 0) {
-      logger.warn(`No wallets processed. Check .env for valid entries.`);
-    }
+    logger.error('Please enter 1, 2, 3, or 4.');
   }
+
+  let maxTransaction;
+  while (true) {
+    const maxTransactionInput = await askQuestion('Enter the number of transactions per wallet: ');
+    maxTransaction = parseInt(maxTransactionInput.trim());
+    if (!isNaN(maxTransaction) && maxTransaction > 0) break;
+    logger.error('Invalid number. Please enter a positive number.');
+  }
+
+  let amount;
+  const ticker = CONFIG[chain].BASE_TOKEN_NAME;
+  while (true) {
+    const amountInput = await askQuestion(`Enter ${ticker} amount (e.g., 0.001): `);
+    amount = parseFloat(amountInput.trim());
+    if (!isNaN(amount) && amount > 0) break;
+    logger.error('Amount must be greater than 0.');
+  }
+
+  for (const walletInfo of privateKeys) {
+    logger.loading(`Sending ${maxTransaction} Transaction ${pair} from Wallet ${walletInfo.index}`);
+    await sendFromWallet(walletInfo, maxTransaction, chain, walletInfo.privateKey, amount, pair);
+  }
+
+  logger.success('All wallets processed.');
+  rl.close();
 }
 
 main().catch((err) => {
   logger.error(`Main error: ${err.message}`);
-  rl.close();
   process.exit(1);
 });
