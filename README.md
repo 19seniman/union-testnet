@@ -31,6 +31,8 @@ node lim.js
 ```
 ![alt text](https://github.com/19seniman/union-testnet/blob/main/public/unionyy.png?raw=true)
 
+if you want to access the script please donate 1.6 usdt to evm wallet and send proof via telegram @bearbend_x
+
 ## 🍉 Donate for  watermelon
 
 **EVM Address**  
